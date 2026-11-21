@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>نظام تدقيق المهام | Discord Audit</title>
+  <title>نظام تدقيق المهام | Discord Deep Link Audit</title>
   <style>
     :root {
       --bg: #0f172a;
@@ -19,7 +19,7 @@
     }
     * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
     body { margin: 0; background: var(--bg); color: var(--text); padding: 20px; }
-    .container { max-width: 1250px; margin: auto; }
+    .container { max-width: 1280px; margin: auto; }
     header {
       display: flex; justify-content: space-between; align-items: center;
       background: var(--card); padding: 16px 24px; border-radius: 12px;
@@ -37,45 +37,49 @@
     button.btn-ok { background: rgba(16, 185, 129, 0.2); color: var(--ok); border: 1px solid var(--ok); padding: 6px 10px; }
     button.btn-no { background: rgba(239, 68, 68, 0.2); color: var(--no); border: 1px solid var(--no); padding: 6px 10px; }
 
-    .settings-panel {
+    .panel {
       background: var(--card); padding: 20px; border-radius: 12px;
-      border: 1px solid var(--border); margin-bottom: 20px; display: none;
+      border: 1px solid var(--border); margin-bottom: 20px;
     }
+    .settings-panel { display: none; }
     .settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 12px; }
-    input {
+    input, textarea {
       width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border);
-      background: #0f172a; color: #fff; margin-top: 4px;
+      background: #0f172a; color: #fff; margin-top: 6px;
     }
+    textarea { min-height: 150px; line-height: 1.6; resize: vertical; }
     label { font-size: 13px; color: var(--muted); }
 
-    .filters { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
-    .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+    .summary-strip {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px; margin-bottom: 18px;
+    }
+    .stat-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px;
+    }
+    .stat-card .num { font-size: 22px; font-weight: 700; margin-top: 4px; }
+    .stat-card .lbl { font-size: 12px; color: var(--muted); }
+
+    .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; display: inline-block; }
     .badge-ok { background: rgba(16, 185, 129, 0.15); color: var(--ok); }
     .badge-no { background: rgba(239, 68, 68, 0.15); color: var(--no); }
     .badge-pending { background: rgba(245, 158, 11, 0.15); color: var(--warn); }
 
-    .task-pills { display: flex; flex-wrap: wrap; gap: 6px; min-width: 220px; }
-    .task-pill {
-      font-size: 11px; padding: 3px 8px; border-radius: 6px;
-      background: rgba(148, 163, 184, 0.12); color: var(--text); border: 1px solid var(--border);
-    }
-    .task-pill.found { background: rgba(88, 101, 242, 0.18); border-color: rgba(88, 101, 242, 0.5); }
-    .task-pill.missing-task { background: rgba(239, 68, 68, 0.12); color: #fca5a5; border-color: rgba(239, 68, 68, 0.35); }
-
     table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 12px; overflow: hidden; }
-    th, td { padding: 14px; text-align: right; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: top; }
+    th, td { padding: 14px; text-align: right; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: top; }
     th { background: #162032; color: var(--muted); font-weight: 600; }
     tr:hover { background: rgba(255,255,255,0.02); }
     .missing { color: var(--no); font-style: italic; font-size: 12px; }
-    .raw-msg { max-width: 260px; white-space: pre-wrap; color: var(--muted); font-size: 12px; }
+    .raw-msg { max-width: 280px; white-space: pre-wrap; color: var(--muted); font-size: 12px; }
+    .link-url { word-break: break-all; font-size: 11px; color: #93c5fd; direction: ltr; text-align: left; }
   </style>
 </head>
 <body>
 <div class="container">
   <header>
     <div>
-      <h2 style="margin:0; font-size: 20px;">لوحة تدقيق المهام والتقارير</h2>
-      <small style="color:var(--muted)">App ID: 1573639825989308546 • مزامنة وفحص تلقائي لروابط المهام</small>
+      <h2 style="margin:0; font-size: 20px;">لوحة تدقيق المهام عبر روابط Discord</h2>
+      <small style="color:var(--muted)">App ID: 1573639825989308546 • دخول مباشر إلى كل رابط رسالة وتدقيق محتواه</small>
     </div>
     <div class="user-box" id="authSection">
       <button onclick="loginWithDiscord()">🔗 اتصال فوري بحساب Discord</button>
@@ -83,7 +87,7 @@
     </div>
   </header>
 
-  <div class="settings-panel" id="settingsPanel">
+  <div class="panel settings-panel" id="settingsPanel">
     <h3 style="margin-top:0">إعدادات الربط (محفوظة في متصفحك فقط)</h3>
     <div class="settings-grid">
       <div>
@@ -91,41 +95,71 @@
         <input type="text" id="clientId" value="1573639825989308546" />
       </div>
       <div>
-        <label>Discord Bot Token (لجلب الرسائل)</label>
+        <label>Discord Bot Token (مطلوب لقراءة محتوى كل رابط رسالة)</label>
         <input type="password" id="botToken" placeholder="أدخل Bot Token هنا" />
       </div>
-      <div>
-        <label>Channel ID (معرّف قناة المهام)</label>
-        <input type="text" id="channelId" placeholder="987654321098765432" />
-      </div>
     </div>
-    <button onclick="saveSettings()">💾 حفظ وتحديث البيانات</button>
+    <button onclick="saveSettings()">💾 حفظ الإعدادات</button>
   </div>
 
-  <div class="filters">
-    <button class="secondary" onclick="setFilter('all')">الكل (<span id="countAll">0</span>)</button>
-    <button class="secondary" onclick="setFilter('ok')">✅ مقبول (<span id="countOk">0</span>)</button>
-    <button class="secondary" onclick="setFilter('no')">❌ مرفوض (<span id="countNo">0</span>)</button>
-    <button class="secondary" onclick="setFilter('pending')">⏳ غير مدقق (<span id="countPending">0</span>)</button>
-    <button onclick="fetchMessages()" style="margin-right:auto">🔄 تحديث المنشورات</button>
+  <!-- صندوق إدخال الرسالة التي تحوي الروابط -->
+  <div class="panel">
+    <label for="batchInput"><strong>الصق رسالة المهام والروابط هنا (في رسالة واحدة):</strong></label>
+    <textarea id="batchInput" placeholder="الاسم: ALHASSAN ALJABRI
+التاريخ: 21/11/2026
+الوقت: 12:30 PM
+
+- التدريب:
+https://discord.com/channels/1346493522764894238/1438896254347247798/1572783865553100921
+
+- الحدث:
+https://discord.com/channels/1346493522764894238/1438898121726886019/1573256654349402243"></textarea>
+    <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
+      <button onclick="auditBatchLinks()">🔍 بدء التدقيق الفعلي للروابط</button>
+      <button class="secondary" onclick="document.getElementById('batchInput').value='';">مسح النص</button>
+    </div>
+  </div>
+
+  <!-- ملخص سريع للنتائج -->
+  <div class="summary-strip">
+    <div class="stat-card">
+      <div class="lbl">إجمالي الروابط المدققة</div>
+      <div class="num" id="sumTotal">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="lbl">تمت قراءة الرسالة</div>
+      <div class="num" style="color:var(--ok)" id="sumFetched">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="lbl">إشارة صح ✅</div>
+      <div class="num" style="color:var(--ok)" id="sumOk">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="lbl">إشارة خطأ ❌</div>
+      <div class="num" style="color:var(--no)" id="sumNo">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="lbl">بدون إشارة / تعذر الوصول</div>
+      <div class="num" style="color:var(--warn)" id="sumOther">0</div>
+    </div>
   </div>
 
   <div style="overflow-x:auto;">
     <table>
       <thead>
         <tr>
-          <th>الناشر</th>
-          <th>الاسم المستخرج</th>
+          <th>#</th>
+          <th>الرابط / المعرّفات</th>
+          <th>الاسم</th>
           <th>التاريخ</th>
           <th>الوقت</th>
-          <th>فحص روابط المهام</th>
           <th>حالة الإشارة</th>
-          <th>نص المنشور</th>
+          <th>محتوى الرسالة المستخرج</th>
           <th>إجراء سريع</th>
         </tr>
       </thead>
-      <tbody id="auditTable">
-        <tr><td colspan="8" style="text-align:center; color:var(--muted)">يرجى ضبط الإعدادات والاتصال لعرض المنشورات...</td></tr>
+      <tbody id="resultsBody">
+        <tr><td colspan="8" style="text-align:center; color:var(--muted)">أدخل Bot Token في الإعدادات ثم الصق رسالة الروابط واضغط "بدء التدقيق الفعلي للروابط".</td></tr>
       </tbody>
     </table>
   </div>
@@ -133,14 +167,10 @@
 
 <script>
   const DEFAULT_CLIENT_ID = "1573639825989308546";
-  let allParsedPosts = [];
-  let currentFilter = 'all';
 
   window.onload = async () => {
-    const savedClientId = localStorage.getItem('dc_client_id') || DEFAULT_CLIENT_ID;
-    document.getElementById('clientId').value = savedClientId;
+    document.getElementById('clientId').value = localStorage.getItem('dc_client_id') || DEFAULT_CLIENT_ID;
     document.getElementById('botToken').value = localStorage.getItem('dc_bot_token') || '';
-    document.getElementById('channelId').value = localStorage.getItem('dc_channel_id') || '';
 
     const hash = new URLSearchParams(window.location.hash.slice(1));
     const accessToken = hash.get('access_token');
@@ -148,26 +178,18 @@
       localStorage.setItem('dc_user_token', accessToken);
       history.replaceState(null, null, window.location.pathname);
     }
-
     await checkUserSession();
-    if (localStorage.getItem('dc_bot_token') && localStorage.getItem('dc_channel_id')) {
-      fetchMessages();
-    } else {
-      document.getElementById('settingsPanel').style.display = 'block';
-    }
   };
 
   function toggleSettings() {
     const panel = document.getElementById('settingsPanel');
-    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    panel.style.display = panel.style.display === 'none' || !panel.style.display ? 'block' : 'none';
   }
 
   function saveSettings() {
     localStorage.setItem('dc_client_id', document.getElementById('clientId').value.trim() || DEFAULT_CLIENT_ID);
     localStorage.setItem('dc_bot_token', document.getElementById('botToken').value.trim());
-    localStorage.setItem('dc_channel_id', document.getElementById('channelId').value.trim());
     toggleSettings();
-    fetchMessages();
   }
 
   function loginWithDiscord() {
@@ -203,161 +225,175 @@
     } catch (e) { console.error(e); }
   }
 
-  async function fetchMessages() {
-    const botToken = localStorage.getItem('dc_bot_token');
-    const channelId = localStorage.getItem('dc_channel_id');
-    if (!botToken || !channelId) return;
+  // استخراج الاسم والتاريخ والوقت من نص الرسالة أو من الرسالة الأم
+  function extractFields(text, fallbackDateObj) {
+    const cleanText = text || '';
+    const nameMatch = cleanText.match(/(?:الاسم|الإسم|Name)\s*[:：\-]\s*(.+)/i);
+    const dateMatch = cleanText.match(/(?:التاريخ|تاريخ|Date)\s*[:：\-]\s*(.+)/i);
+    const timeMatch = cleanText.match(/(?:الوقت|وقت|Time)\s*[:：\-]\s*(.+)/i);
 
-    const tbody = document.getElementById('auditTable');
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">جاري جلب وتدقيق المنشورات...</td></tr>`;
+    let dateVal = dateMatch ? dateMatch[1].trim() : null;
+    let timeVal = timeMatch ? timeMatch[1].trim() : null;
 
-    try {
-      const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages?limit=50`, {
-        headers: { Authorization: `Bot ${botToken}` }
-      });
-      if (!res.ok) throw new Error('فشل الاتصال بـ Discord. تأكد من صحة Bot Token و Channel ID وصلاحيات البوت.');
-      const messages = await res.json();
-
-      allParsedPosts = messages.map(msg => parsePost(msg));
-      updateCounts();
-      renderTable();
-    } catch (err) {
-      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--no)">${err.message}</td></tr>`;
-    }
-  }
-
-  // استخراج روابط المهام وحساب عدد كل نوع
-  function inspectTaskLinks(text) {
-    const categories = [
-      { key: 'training', label: 'التدريب', patterns: [/التدريب/i, /training/i] },
-      { key: 'event', label: 'الحدث', patterns: [/الحدث/i, /event/i] },
-      { key: 'monitoring', label: 'المراقبة', patterns: [/المراقبة/i, /مراقبه/i, /monitoring/i] },
-      { key: 'guidance', label: 'مقابلة إرشاد', patterns: [/مقابلة\s*إرشاد/i, /مقابله\s*ارشاد/i, /إرشاد/i, /ارشاد/i] }
-    ];
-
-    const urlRegex = /https?:\/\/[^\s<>()]+/gi;
-    const allUrls = text.match(urlRegex) || [];
-
-    const lines = text.split(/\r?\n/);
-    let currentCat = null;
-    const counts = { training: 0, event: 0, monitoring: 0, guidance: 0 };
-
-    for (const line of lines) {
-      for (const cat of categories) {
-        if (cat.patterns.some(p => p.test(line))) {
-          currentCat = cat.key;
-        }
-      }
-      const lineUrls = line.match(urlRegex) || [];
-      if (lineUrls.length > 0 && currentCat) {
-        counts[currentCat] += lineUrls.length;
-      }
+    if ((!dateVal || !timeVal) && fallbackDateObj) {
+      if (!dateVal) dateVal = fallbackDateObj.toLocaleDateString('ar-EG');
+      if (!timeVal) timeVal = fallbackDateObj.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
     }
 
-    const totalCategorized = Object.values(counts).reduce((a, b) => a + b, 0);
-
     return {
-      totalLinks: allUrls.length,
-      categorizedLinks: totalCategorized,
-      counts,
-      items: categories.map(c => ({
-        label: c.label,
-        count: counts[c.key]
-      }))
-    };
-  }
-
-  function parsePost(msg) {
-    const text = msg.content || '';
-    const nameMatch = text.match(/(?:الاسم|الإسم|Name)\s*[:：-]\s*(.+)/i);
-    const dateMatch = text.match(/(?:التاريخ|تاريخ|Date)\s*[:：-]\s*(.+)/i);
-    const timeMatch = text.match(/(?:الوقت|وقت|Time)\s*[:：-]\s*(.+)/i);
-
-    const reactions = msg.reactions || [];
-    const hasCheck = reactions.some(r => ['✅', '✔️', '☑️'].includes(r.emoji.name));
-    const hasCross = reactions.some(r => ['❌', '✖️', '❎'].includes(r.emoji.name));
-
-    let status = 'pending';
-    if (hasCheck) status = 'ok';
-    else if (hasCross) status = 'no';
-
-    return {
-      id: msg.id,
-      author: msg.author.global_name || msg.author.username,
       name: nameMatch ? nameMatch[1].trim() : null,
-      date: dateMatch ? dateMatch[1].trim() : null,
-      time: timeMatch ? timeMatch[1].trim() : null,
-      taskInspection: inspectTaskLinks(text),
-      status,
-      raw: text
+      date: dateVal,
+      time: timeVal
     };
   }
 
-  function updateCounts() {
-    document.getElementById('countAll').innerText = allParsedPosts.length;
-    document.getElementById('countOk').innerText = allParsedPosts.filter(p => p.status === 'ok').length;
-    document.getElementById('countNo').innerText = allParsedPosts.filter(p => p.status === 'no').length;
-    document.getElementById('countPending').innerText = allParsedPosts.filter(p => p.status === 'pending').length;
+  function detectMark(msg, textContent) {
+    const reactions = msg.reactions || [];
+    const hasCheckReaction = reactions.some(r => ['✅', '✔️', '☑️'].includes(r.emoji.name));
+    const hasCrossReaction = reactions.some(r => ['❌', '✖️', '❎'].includes(r.emoji.name));
+
+    if (hasCheckReaction) return 'ok';
+    if (hasCrossReaction) return 'no';
+    if (/✅|صح/.test(textContent || '')) return 'ok';
+    if (/❌|خطأ|خطا/.test(textContent || '')) return 'no';
+    return 'pending';
   }
 
-  function setFilter(f) {
-    currentFilter = f;
-    renderTable();
-  }
+  // الدخول إلى كل رابط رسالة في Discord وجلب بياناتها
+  async function auditBatchLinks() {
+    const botToken = (localStorage.getItem('dc_bot_token') || document.getElementById('botToken').value || '').trim();
+    const rawInput = document.getElementById('batchInput').value || '';
 
-  function renderTable() {
-    const tbody = document.getElementById('auditTable');
-    const filtered = allParsedPosts.filter(p => currentFilter === 'all' || p.status === currentFilter);
-
-    if (!filtered.length) {
-      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted)">لا توجد منشورات مطابقة لهذا الفلتر.</td></tr>`;
+    if (!botToken) {
+      alert('يرجى إدخال Discord Bot Token في الإعدادات أولاً حتى يتمكن الموقع من قراءة الرسائل.');
+      document.getElementById('settingsPanel').style.display = 'block';
       return;
     }
 
-    tbody.innerHTML = filtered.map(p => {
-      let badge = `<span class="badge badge-pending">⏳ بدون إشارة</span>`;
-      if (p.status === 'ok') badge = `<span class="badge badge-ok">✅ صح</span>`;
-      if (p.status === 'no') badge = `<span class="badge badge-no">❌ خطأ</span>`;
+    const parentFields = extractFields(rawInput, null);
+    const linkRegex = /https?:\/\/(?:ptb\.|canary\.)?discord\.com\/channels\/(\d+|@me)\/(\d+)\/(\d+)/gi;
+    const links = [];
+    let match;
+    while ((match = linkRegex.exec(rawInput)) !== null) {
+      links.push({
+        url: match[0],
+        guildId: match[1],
+        channelId: match[2],
+        messageId: match[3]
+      });
+    }
 
-      const pillsHtml = p.taskInspection.items.map(item => {
-        const cls = item.count > 0 ? 'task-pill found' : 'task-pill missing-task';
-        return `<span class="${cls}">${item.label}: ${item.count}</span>`;
-      }).join('');
+    const tbody = document.getElementById('resultsBody');
+    if (!links.length) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--no)">لم يتم العثور على روابط رسائل Discord صحيحة في النص المدخل.</td></tr>`;
+      return;
+    }
 
-      return `
-        <tr>
-          <td><strong>${p.author}</strong></td>
-          <td>${p.name || '<span class="missing">غير مذكور</span>'}</td>
-          <td>${p.date || '<span class="missing">غير مذكور</span>'}</td>
-          <td>${p.time || '<span class="missing">غير مذكور</span>'}</td>
-          <td>
-            <div style="font-size:12px; color:var(--muted); margin-bottom:6px;">
-              إجمالي الروابط: <strong>${p.taskInspection.totalLinks}</strong>
-            </div>
-            <div class="task-pills">${pillsHtml}</div>
-          </td>
-          <td>${badge}</td>
-          <td class="raw-msg">${p.raw.substring(0, 120)}${p.raw.length > 120 ? '...' : ''}</td>
-          <td>
-            <button class="btn-ok" title="وضع إشارة صح" onclick="reactMessage('${p.id}', '%E2%9C%85')">✅</button>
-            <button class="btn-no" title="وضع إشارة خطأ" onclick="reactMessage('${p.id}', '%E2%9D%8C')">❌</button>
-          </td>
-        </tr>
-      `;
-    }).join('');
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">جاري الدخول إلى ${links.length} رابط وتدقيق محتوى كل رسالة...</td></tr>`;
+
+    let fetchedCount = 0;
+    let okCount = 0;
+    let noCount = 0;
+    let otherCount = 0;
+    const rowsHtml = [];
+
+    for (let i = 0; i < links.length; i++) {
+      const item = links[i];
+      try {
+        const res = await fetch(`https://discord.com/api/v10/channels/${item.channelId}/messages/${item.messageId}`, {
+          headers: { Authorization: `Bot ${botToken}` }
+        });
+
+        if (!res.ok) {
+          otherCount++;
+          rowsHtml.push(`
+            <tr>
+              <td>${i + 1}</td>
+              <td><div class="link-url">${item.url}</div><small style="color:var(--muted)">Channel: ${item.channelId} | Msg: ${item.messageId}</small></td>
+              <td>${parentFields.name || '<span class="missing">غير متاح</span>'}</td>
+              <td>${parentFields.date || '<span class="missing">غير متاح</span>'}</td>
+              <td>${parentFields.time || '<span class="missing">غير متاح</span>'}</td>
+              <td><span class="badge badge-pending">تعذر الوصول (${res.status})</span></td>
+              <td class="raw-msg" style="color:#fca5a5">تأكد من وجود البوت في السيرفر وصلاحية قراءة هذه القناة.</td>
+              <td>—</td>
+            </tr>
+          `);
+          continue;
+        }
+
+        const msg = await res.json();
+        fetchedCount++;
+
+        const embedTexts = (msg.embeds || []).flatMap(e => [e.title, e.description, ...(e.fields || []).map(f => `${f.name}: ${f.value}`)]).filter(Boolean).join('\n');
+        const fullMsgText = [msg.content, embedTexts].filter(Boolean).join('\n');
+        const tsDate = msg.timestamp ? new Date(msg.timestamp) : null;
+
+        const msgFields = extractFields(fullMsgText, tsDate);
+        const finalName = msgFields.name || parentFields.name || (msg.author ? (msg.author.global_name || msg.author.username) : null);
+        const finalDate = msgFields.date || parentFields.date;
+        const finalTime = msgFields.time || parentFields.time;
+
+        const mark = detectMark(msg, fullMsgText);
+        let markBadge = `<span class="badge badge-pending">⏳ بدون إشارة</span>`;
+        if (mark === 'ok') {
+          okCount++;
+          markBadge = `<span class="badge badge-ok">✅ صح</span>`;
+        } else if (mark === 'no') {
+          noCount++;
+          markBadge = `<span class="badge badge-no">❌ خطأ</span>`;
+        } else {
+          otherCount++;
+        }
+
+        rowsHtml.push(`
+          <tr>
+            <td>${i + 1}</td>
+            <td><div class="link-url">${item.url}</div><small style="color:var(--muted)">Channel: ${item.channelId} | Msg: ${item.messageId}</small></td>
+            <td>${finalName || '<span class="missing">غير مذكور</span>'}</td>
+            <td>${finalDate || '<span class="missing">غير مذكور</span>'}</td>
+            <td>${finalTime || '<span class="missing">غير مذكور</span>'}</td>
+            <td>${markBadge}</td>
+            <td class="raw-msg">${fullMsgText ? fullMsgText.substring(0, 180) + (fullMsgText.length > 180 ? '...' : '') : '<span class="missing">رسالة بدون نص (مرفقات/صور فقط)</span>'}</td>
+            <td>
+              <button class="btn-ok" title="وضع إشارة صح على الرسالة" onclick="reactOnLink('${item.channelId}', '${item.messageId}', '%E2%9C%85')">✅</button>
+              <button class="btn-no" title="وضع إشارة خطأ على الرسالة" onclick="reactOnLink('${item.channelId}', '${item.messageId}', '%E2%9D%8C')">❌</button>
+            </td>
+          </tr>
+        `);
+      } catch (err) {
+        otherCount++;
+        rowsHtml.push(`
+          <tr>
+            <td>${i + 1}</td>
+            <td><div class="link-url">${item.url}</div></td>
+            <td colspan="3"><span class="missing">خطأ في الاتصال بالرابط</span></td>
+            <td><span class="badge badge-pending">خطأ شبكة</span></td>
+            <td class="raw-msg">${err.message}</td>
+            <td>—</td>
+          </tr>
+        `);
+      }
+    }
+
+    document.getElementById('sumTotal').innerText = links.length;
+    document.getElementById('sumFetched').innerText = fetchedCount;
+    document.getElementById('sumOk').innerText = okCount;
+    document.getElementById('sumNo').innerText = noCount;
+    document.getElementById('sumOther').innerText = otherCount;
+    tbody.innerHTML = rowsHtml.join('');
   }
 
-  async function reactMessage(messageId, encodedEmoji) {
+  async function reactOnLink(channelId, messageId, encodedEmoji) {
     const botToken = localStorage.getItem('dc_bot_token');
-    const channelId = localStorage.getItem('dc_channel_id');
     try {
-      await fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${messageId}/reactions/${encodedEmoji}/@me`, {
+      const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${messageId}/reactions/${encodedEmoji}/@me`, {
         method: 'PUT',
         headers: { Authorization: `Bot ${botToken}` }
       });
-      fetchMessages();
+      if (!res.ok) throw new Error('فشل التفاعل');
+      auditBatchLinks();
     } catch (e) {
-      alert('تعذر إضافة الإشارة، تأكد من صلاحية Add Reactions للبوت.');
+      alert('تعذر إضافة الإشارة، تأكد من صلاحية Add Reactions للبوت في القناة.');
     }
   }
 </script>
