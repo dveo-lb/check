@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>نظام تدقيق المهام | Discord Deep Link Audit</title>
+  <title>نظام تدقيق المهام عبر روابط Discord | Cloudflare Worker</title>
   <style>
     :root {
       --bg: #0f172a;
@@ -19,7 +19,7 @@
     }
     * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
     body { margin: 0; background: var(--bg); color: var(--text); padding: 20px; }
-    .container { max-width: 1280px; margin: auto; }
+    .container { max-width: 1320px; margin: auto; }
     header {
       display: flex; justify-content: space-between; align-items: center;
       background: var(--card); padding: 16px 24px; border-radius: 12px;
@@ -42,16 +42,16 @@
       border: 1px solid var(--border); margin-bottom: 20px;
     }
     .settings-panel { display: none; }
-    .settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 12px; }
+    .settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; margin-bottom: 12px; }
     input, textarea {
       width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border);
       background: #0f172a; color: #fff; margin-top: 6px;
     }
-    textarea { min-height: 150px; line-height: 1.6; resize: vertical; }
+    textarea { min-height: 155px; line-height: 1.6; resize: vertical; }
     label { font-size: 13px; color: var(--muted); }
 
     .summary-strip {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
       gap: 12px; margin-bottom: 18px;
     }
     .stat-card {
@@ -72,6 +72,11 @@
     .missing { color: var(--no); font-style: italic; font-size: 12px; }
     .raw-msg { max-width: 280px; white-space: pre-wrap; color: var(--muted); font-size: 12px; }
     .link-url { word-break: break-all; font-size: 11px; color: #93c5fd; direction: ltr; text-align: left; }
+    .react-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+    .react-chip {
+      font-size: 11px; padding: 2px 6px; border-radius: 6px;
+      background: rgba(148, 163, 184, 0.12); border: 1px solid var(--border);
+    }
   </style>
 </head>
 <body>
@@ -79,7 +84,7 @@
   <header>
     <div>
       <h2 style="margin:0; font-size: 20px;">لوحة تدقيق المهام عبر روابط Discord</h2>
-      <small style="color:var(--muted)">App ID: 1573639825989308546 • دخول مباشر إلى كل رابط رسالة وتدقيق محتواه</small>
+      <small style="color:var(--muted)">App ID: 1573639825989308546 • اتصال عبر Cloudflare Worker لقراءة الرسائل والتفاعلات</small>
     </div>
     <div class="user-box" id="authSection">
       <button onclick="loginWithDiscord()">🔗 اتصال فوري بحساب Discord</button>
@@ -91,18 +96,21 @@
     <h3 style="margin-top:0">إعدادات الربط (محفوظة في متصفحك فقط)</h3>
     <div class="settings-grid">
       <div>
+        <label>Cloudflare Worker URL (مثال: https://xxx.workers.dev)</label>
+        <input type="text" id="workerUrl" placeholder="https://discord-audit.your-name.workers.dev" />
+      </div>
+      <div>
         <label>Discord Client / Application ID</label>
         <input type="text" id="clientId" value="1573639825989308546" />
       </div>
       <div>
-        <label>Discord Bot Token (مطلوب لقراءة محتوى كل رابط رسالة)</label>
-        <input type="password" id="botToken" placeholder="أدخل Bot Token هنا" />
+        <label>Discord Bot Token (اختياري إذا كان مضبوطاً في Secrets بالـ Worker)</label>
+        <input type="password" id="botToken" placeholder="أدخل Bot Token هنا أو اتركه فارغاً" />
       </div>
     </div>
     <button onclick="saveSettings()">💾 حفظ الإعدادات</button>
   </div>
 
-  <!-- صندوق إدخال الرسالة التي تحوي الروابط -->
   <div class="panel">
     <label for="batchInput"><strong>الصق رسالة المهام والروابط هنا (في رسالة واحدة):</strong></label>
     <textarea id="batchInput" placeholder="الاسم: ALHASSAN ALJABRI
@@ -120,7 +128,6 @@ https://discord.com/channels/1346493522764894238/1438898121726886019/15732566543
     </div>
   </div>
 
-  <!-- ملخص سريع للنتائج -->
   <div class="summary-strip">
     <div class="stat-card">
       <div class="lbl">إجمالي الروابط المدققة</div>
@@ -153,13 +160,13 @@ https://discord.com/channels/1346493522764894238/1438898121726886019/15732566543
           <th>الاسم</th>
           <th>التاريخ</th>
           <th>الوقت</th>
-          <th>حالة الإشارة</th>
+          <th>حالة الإشارة والتفاعلات</th>
           <th>محتوى الرسالة المستخرج</th>
           <th>إجراء سريع</th>
         </tr>
       </thead>
       <tbody id="resultsBody">
-        <tr><td colspan="8" style="text-align:center; color:var(--muted)">أدخل Bot Token في الإعدادات ثم الصق رسالة الروابط واضغط "بدء التدقيق الفعلي للروابط".</td></tr>
+        <tr><td colspan="8" style="text-align:center; color:var(--muted)">أدخل رابط Cloudflare Worker في الإعدادات ثم الصق رسالة الروابط واضغط "بدء التدقيق الفعلي للروابط".</td></tr>
       </tbody>
     </table>
   </div>
@@ -167,8 +174,10 @@ https://discord.com/channels/1346493522764894238/1438898121726886019/15732566543
 
 <script>
   const DEFAULT_CLIENT_ID = "1573639825989308546";
+  const DEFAULT_WORKER_URL = ""; // يمكنك وضع رابط Worker هنا مباشرة إذا أردت
 
   window.onload = async () => {
+    document.getElementById('workerUrl').value = localStorage.getItem('dc_worker_url') || DEFAULT_WORKER_URL;
     document.getElementById('clientId').value = localStorage.getItem('dc_client_id') || DEFAULT_CLIENT_ID;
     document.getElementById('botToken').value = localStorage.getItem('dc_bot_token') || '';
 
@@ -187,6 +196,8 @@ https://discord.com/channels/1346493522764894238/1438898121726886019/15732566543
   }
 
   function saveSettings() {
+    const cleanWorker = document.getElementById('workerUrl').value.trim().replace(/\/+$/, '');
+    localStorage.setItem('dc_worker_url', cleanWorker);
     localStorage.setItem('dc_client_id', document.getElementById('clientId').value.trim() || DEFAULT_CLIENT_ID);
     localStorage.setItem('dc_bot_token', document.getElementById('botToken').value.trim());
     toggleSettings();
@@ -225,7 +236,6 @@ https://discord.com/channels/1346493522764894238/1438898121726886019/15732566543
     } catch (e) { console.error(e); }
   }
 
-  // استخراج الاسم والتاريخ والوقت من نص الرسالة أو من الرسالة الأم
   function extractFields(text, fallbackDateObj) {
     const cleanText = text || '';
     const nameMatch = cleanText.match(/(?:الاسم|الإسم|Name)\s*[:：\-]\s*(.+)/i);
@@ -249,8 +259,8 @@ https://discord.com/channels/1346493522764894238/1438898121726886019/15732566543
 
   function detectMark(msg, textContent) {
     const reactions = msg.reactions || [];
-    const hasCheckReaction = reactions.some(r => ['✅', '✔️', '☑️'].includes(r.emoji.name));
-    const hasCrossReaction = reactions.some(r => ['❌', '✖️', '❎'].includes(r.emoji.name));
+    const hasCheckReaction = reactions.some(r => ['✅', '✔️', '☑️'].includes(r.emoji && r.emoji.name));
+    const hasCrossReaction = reactions.some(r => ['❌', '✖️', '❎'].includes(r.emoji && r.emoji.name));
 
     if (hasCheckReaction) return 'ok';
     if (hasCrossReaction) return 'no';
@@ -259,13 +269,22 @@ https://discord.com/channels/1346493522764894238/1438898121726886019/15732566543
     return 'pending';
   }
 
-  // الدخول إلى كل رابط رسالة في Discord وجلب بياناتها
+  function renderReactionChips(reactions) {
+    if (!reactions || !reactions.length) return '';
+    const chips = reactions.map(r => {
+      const name = r.emoji && r.emoji.name ? r.emoji.name : 'reaction';
+      return `<span class="react-chip">${name} (${r.count || 1})</span>`;
+    }).join('');
+    return `<div class="react-list">${chips}</div>`;
+  }
+
   async function auditBatchLinks() {
+    const workerUrl = (localStorage.getItem('dc_worker_url') || document.getElementById('workerUrl').value || DEFAULT_WORKER_URL || '').trim().replace(/\/+$/, '');
     const botToken = (localStorage.getItem('dc_bot_token') || document.getElementById('botToken').value || '').trim();
     const rawInput = document.getElementById('batchInput').value || '';
 
-    if (!botToken) {
-      alert('يرجى إدخال Discord Bot Token في الإعدادات أولاً حتى يتمكن الموقع من قراءة الرسائل.');
+    if (!workerUrl) {
+      alert('يرجى إدخال رابط Cloudflare Worker في الإعدادات أولاً.');
       document.getElementById('settingsPanel').style.display = 'block';
       return;
     }
@@ -289,7 +308,7 @@ https://discord.com/channels/1346493522764894238/1438898121726886019/15732566543
       return;
     }
 
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">جاري الدخول إلى ${links.length} رابط وتدقيق محتوى كل رسالة...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">جاري الدخول إلى ${links.length} رابط عبر Cloudflare Worker وتدقيق محتوى كل رسالة...</td></tr>`;
 
     let fetchedCount = 0;
     let okCount = 0;
@@ -297,12 +316,14 @@ https://discord.com/channels/1346493522764894238/1438898121726886019/15732566543
     let otherCount = 0;
     const rowsHtml = [];
 
+    const headers = {};
+    if (botToken) headers['X-Bot-Token'] = botToken;
+
     for (let i = 0; i < links.length; i++) {
       const item = links[i];
       try {
-        const res = await fetch(`https://discord.com/api/v10/channels/${item.channelId}/messages/${item.messageId}`, {
-          headers: { Authorization: `Bot ${botToken}` }
-        });
+        const endpoint = `${workerUrl}?channel=${encodeURIComponent(item.channelId)}&message=${encodeURIComponent(item.messageId)}`;
+        const res = await fetch(endpoint, { headers });
 
         if (!res.ok) {
           otherCount++;
@@ -314,7 +335,7 @@ https://discord.com/channels/1346493522764894238/1438898121726886019/15732566543
               <td>${parentFields.date || '<span class="missing">غير متاح</span>'}</td>
               <td>${parentFields.time || '<span class="missing">غير متاح</span>'}</td>
               <td><span class="badge badge-pending">تعذر الوصول (${res.status})</span></td>
-              <td class="raw-msg" style="color:#fca5a5">تأكد من وجود البوت في السيرفر وصلاحية قراءة هذه القناة.</td>
+              <td class="raw-msg" style="color:#fca5a5">تأكد من وجود البوت في السيرفر وصلاحية قراءة هذه القناة وصحة التوكن.</td>
               <td>—</td>
             </tr>
           `);
@@ -324,7 +345,10 @@ https://discord.com/channels/1346493522764894238/1438898121726886019/15732566543
         const msg = await res.json();
         fetchedCount++;
 
-        const embedTexts = (msg.embeds || []).flatMap(e => [e.title, e.description, ...(e.fields || []).map(f => `${f.name}: ${f.value}`)]).filter(Boolean).join('\n');
+        const embedTexts = (msg.embeds || [])
+          .flatMap(e => [e.title, e.description, ...(e.fields || []).map(f => `${f.name}: ${f.value}`)])
+          .filter(Boolean)
+          .join('\n');
         const fullMsgText = [msg.content, embedTexts].filter(Boolean).join('\n');
         const tsDate = msg.timestamp ? new Date(msg.timestamp) : null;
 
@@ -352,8 +376,11 @@ https://discord.com/channels/1346493522764894238/1438898121726886019/15732566543
             <td>${finalName || '<span class="missing">غير مذكور</span>'}</td>
             <td>${finalDate || '<span class="missing">غير مذكور</span>'}</td>
             <td>${finalTime || '<span class="missing">غير مذكور</span>'}</td>
-            <td>${markBadge}</td>
-            <td class="raw-msg">${fullMsgText ? fullMsgText.substring(0, 180) + (fullMsgText.length > 180 ? '...' : '') : '<span class="missing">رسالة بدون نص (مرفقات/صور فقط)</span>'}</td>
+            <td>
+              ${markBadge}
+              ${renderReactionChips(msg.reactions)}
+            </td>
+            <td class="raw-msg">${fullMsgText ? fullMsgText.substring(0, 200) + (fullMsgText.length > 200 ? '...' : '') : '<span class="missing">رسالة بدون نص (مرفقات/صور فقط)</span>'}</td>
             <td>
               <button class="btn-ok" title="وضع إشارة صح على الرسالة" onclick="reactOnLink('${item.channelId}', '${item.messageId}', '%E2%9C%85')">✅</button>
               <button class="btn-no" title="وضع إشارة خطأ على الرسالة" onclick="reactOnLink('${item.channelId}', '${item.messageId}', '%E2%9D%8C')">❌</button>
@@ -366,8 +393,8 @@ https://discord.com/channels/1346493522764894238/1438898121726886019/15732566543
           <tr>
             <td>${i + 1}</td>
             <td><div class="link-url">${item.url}</div></td>
-            <td colspan="3"><span class="missing">خطأ في الاتصال بالرابط</span></td>
-            <td><span class="badge badge-pending">خطأ شبكة</span></td>
+            <td colspan="3"><span class="missing">خطأ في الاتصال بالـ Worker</span></td>
+            <td><span class="badge badge-pending">خطأ اتصال</span></td>
             <td class="raw-msg">${err.message}</td>
             <td>—</td>
           </tr>
@@ -384,12 +411,16 @@ https://discord.com/channels/1346493522764894238/1438898121726886019/15732566543
   }
 
   async function reactOnLink(channelId, messageId, encodedEmoji) {
-    const botToken = localStorage.getItem('dc_bot_token');
+    const workerUrl = (localStorage.getItem('dc_worker_url') || document.getElementById('workerUrl').value || DEFAULT_WORKER_URL || '').trim().replace(/\/+$/, '');
+    const botToken = (localStorage.getItem('dc_bot_token') || document.getElementById('botToken').value || '').trim();
+    if (!workerUrl) return;
+
+    const headers = {};
+    if (botToken) headers['X-Bot-Token'] = botToken;
+
     try {
-      const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${messageId}/reactions/${encodedEmoji}/@me`, {
-        method: 'PUT',
-        headers: { Authorization: `Bot ${botToken}` }
-      });
+      const endpoint = `${workerUrl}?channel=${encodeURIComponent(channelId)}&message=${encodeURIComponent(messageId)}&emoji=${encodedEmoji}`;
+      const res = await fetch(endpoint, { method: 'PUT', headers });
       if (!res.ok) throw new Error('فشل التفاعل');
       auditBatchLinks();
     } catch (e) {
