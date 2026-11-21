@@ -19,7 +19,7 @@
     }
     * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
     body { margin: 0; background: var(--bg); color: var(--text); padding: 20px; }
-    .container { max-width: 1100px; margin: auto; }
+    .container { max-width: 1250px; margin: auto; }
     header {
       display: flex; justify-content: space-between; align-items: center;
       background: var(--card); padding: 16px 24px; border-radius: 12px;
@@ -54,12 +54,20 @@
     .badge-no { background: rgba(239, 68, 68, 0.15); color: var(--no); }
     .badge-pending { background: rgba(245, 158, 11, 0.15); color: var(--warn); }
 
+    .task-pills { display: flex; flex-wrap: wrap; gap: 6px; min-width: 220px; }
+    .task-pill {
+      font-size: 11px; padding: 3px 8px; border-radius: 6px;
+      background: rgba(148, 163, 184, 0.12); color: var(--text); border: 1px solid var(--border);
+    }
+    .task-pill.found { background: rgba(88, 101, 242, 0.18); border-color: rgba(88, 101, 242, 0.5); }
+    .task-pill.missing-task { background: rgba(239, 68, 68, 0.12); color: #fca5a5; border-color: rgba(239, 68, 68, 0.35); }
+
     table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 12px; overflow: hidden; }
-    th, td { padding: 14px; text-align: right; border-bottom: 1px solid var(--border); font-size: 14px; }
+    th, td { padding: 14px; text-align: right; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: top; }
     th { background: #162032; color: var(--muted); font-weight: 600; }
     tr:hover { background: rgba(255,255,255,0.02); }
     .missing { color: var(--no); font-style: italic; font-size: 12px; }
-    .raw-msg { max-width: 280px; white-space: pre-wrap; color: var(--muted); font-size: 12px; }
+    .raw-msg { max-width: 260px; white-space: pre-wrap; color: var(--muted); font-size: 12px; }
   </style>
 </head>
 <body>
@@ -67,7 +75,7 @@
   <header>
     <div>
       <h2 style="margin:0; font-size: 20px;">لوحة تدقيق المهام والتقارير</h2>
-      <small style="color:var(--muted)">App ID: 1573639825989308546 • مزامنة مباشرة مع قناة Discord</small>
+      <small style="color:var(--muted)">App ID: 1573639825989308546 • مزامنة وفحص تلقائي لروابط المهام</small>
     </div>
     <div class="user-box" id="authSection">
       <button onclick="loginWithDiscord()">🔗 اتصال فوري بحساب Discord</button>
@@ -110,13 +118,14 @@
           <th>الاسم المستخرج</th>
           <th>التاريخ</th>
           <th>الوقت</th>
+          <th>فحص روابط المهام</th>
           <th>حالة الإشارة</th>
           <th>نص المنشور</th>
           <th>إجراء سريع</th>
         </tr>
       </thead>
       <tbody id="auditTable">
-        <tr><td colspan="7" style="text-align:center; color:var(--muted)">يرجى ضبط الإعدادات والاتصال لعرض المنشورات...</td></tr>
+        <tr><td colspan="8" style="text-align:center; color:var(--muted)">يرجى ضبط الإعدادات والاتصال لعرض المنشورات...</td></tr>
       </tbody>
     </table>
   </div>
@@ -200,7 +209,7 @@
     if (!botToken || !channelId) return;
 
     const tbody = document.getElementById('auditTable');
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">جاري جلب وتدقيق المنشورات...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">جاري جلب وتدقيق المنشورات...</td></tr>`;
 
     try {
       const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages?limit=50`, {
@@ -213,8 +222,49 @@
       updateCounts();
       renderTable();
     } catch (err) {
-      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--no)">${err.message}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--no)">${err.message}</td></tr>`;
     }
+  }
+
+  // استخراج روابط المهام وحساب عدد كل نوع
+  function inspectTaskLinks(text) {
+    const categories = [
+      { key: 'training', label: 'التدريب', patterns: [/التدريب/i, /training/i] },
+      { key: 'event', label: 'الحدث', patterns: [/الحدث/i, /event/i] },
+      { key: 'monitoring', label: 'المراقبة', patterns: [/المراقبة/i, /مراقبه/i, /monitoring/i] },
+      { key: 'guidance', label: 'مقابلة إرشاد', patterns: [/مقابلة\s*إرشاد/i, /مقابله\s*ارشاد/i, /إرشاد/i, /ارشاد/i] }
+    ];
+
+    const urlRegex = /https?:\/\/[^\s<>()]+/gi;
+    const allUrls = text.match(urlRegex) || [];
+
+    const lines = text.split(/\r?\n/);
+    let currentCat = null;
+    const counts = { training: 0, event: 0, monitoring: 0, guidance: 0 };
+
+    for (const line of lines) {
+      for (const cat of categories) {
+        if (cat.patterns.some(p => p.test(line))) {
+          currentCat = cat.key;
+        }
+      }
+      const lineUrls = line.match(urlRegex) || [];
+      if (lineUrls.length > 0 && currentCat) {
+        counts[currentCat] += lineUrls.length;
+      }
+    }
+
+    const totalCategorized = Object.values(counts).reduce((a, b) => a + b, 0);
+
+    return {
+      totalLinks: allUrls.length,
+      categorizedLinks: totalCategorized,
+      counts,
+      items: categories.map(c => ({
+        label: c.label,
+        count: counts[c.key]
+      }))
+    };
   }
 
   function parsePost(msg) {
@@ -237,6 +287,7 @@
       name: nameMatch ? nameMatch[1].trim() : null,
       date: dateMatch ? dateMatch[1].trim() : null,
       time: timeMatch ? timeMatch[1].trim() : null,
+      taskInspection: inspectTaskLinks(text),
       status,
       raw: text
     };
@@ -259,7 +310,7 @@
     const filtered = allParsedPosts.filter(p => currentFilter === 'all' || p.status === currentFilter);
 
     if (!filtered.length) {
-      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted)">لا توجد منشورات مطابقة لهذا الفلتر.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted)">لا توجد منشورات مطابقة لهذا الفلتر.</td></tr>`;
       return;
     }
 
@@ -268,12 +319,23 @@
       if (p.status === 'ok') badge = `<span class="badge badge-ok">✅ صح</span>`;
       if (p.status === 'no') badge = `<span class="badge badge-no">❌ خطأ</span>`;
 
+      const pillsHtml = p.taskInspection.items.map(item => {
+        const cls = item.count > 0 ? 'task-pill found' : 'task-pill missing-task';
+        return `<span class="${cls}">${item.label}: ${item.count}</span>`;
+      }).join('');
+
       return `
         <tr>
           <td><strong>${p.author}</strong></td>
           <td>${p.name || '<span class="missing">غير مذكور</span>'}</td>
           <td>${p.date || '<span class="missing">غير مذكور</span>'}</td>
           <td>${p.time || '<span class="missing">غير مذكور</span>'}</td>
+          <td>
+            <div style="font-size:12px; color:var(--muted); margin-bottom:6px;">
+              إجمالي الروابط: <strong>${p.taskInspection.totalLinks}</strong>
+            </div>
+            <div class="task-pills">${pillsHtml}</div>
+          </td>
           <td>${badge}</td>
           <td class="raw-msg">${p.raw.substring(0, 120)}${p.raw.length > 120 ? '...' : ''}</td>
           <td>
