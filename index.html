@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>نظام تدقيق المهام عبر روابط Discord | Cloudflare Worker</title>
+  <title>نظام تدقيق المهام | الوصول بالحساب الشخصي</title>
   <style>
     :root {
       --bg: #0f172a;
@@ -42,8 +42,8 @@
       border: 1px solid var(--border); margin-bottom: 20px;
     }
     .settings-panel { display: none; }
-    .settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; margin-bottom: 12px; }
-    input, textarea {
+    .settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 12px; }
+    input, select, textarea {
       width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border);
       background: #0f172a; color: #fff; margin-top: 6px;
     }
@@ -84,28 +84,35 @@
   <header>
     <div>
       <h2 style="margin:0; font-size: 20px;">لوحة تدقيق المهام عبر روابط Discord</h2>
-      <small style="color:var(--muted)">App ID: 1573639825989308546 • اتصال عبر Cloudflare Worker لقراءة الرسائل والتفاعلات</small>
+      <small style="color:var(--muted)">دخول مباشر إلى الروابط بصلاحيات الحساب الشخصي أو البوت عبر Cloudflare Worker</small>
     </div>
     <div class="user-box" id="authSection">
-      <button onclick="loginWithDiscord()">🔗 اتصال فوري بحساب Discord</button>
+      <button onclick="loginWithDiscord()">🔗 ربط الحساب عبر المتصفح</button>
       <button class="secondary" onclick="toggleSettings()">⚙️ الإعدادات</button>
     </div>
   </header>
 
   <div class="panel settings-panel" id="settingsPanel">
-    <h3 style="margin-top:0">إعدادات الربط (محفوظة في متصفحك فقط)</h3>
+    <h3 style="margin-top:0">إعدادات الاتصال (محفوظة محلياً في متصفحك فقط)</h3>
     <div class="settings-grid">
       <div>
-        <label>Cloudflare Worker URL (مثال: https://xxx.workers.dev)</label>
+        <label>Cloudflare Worker URL</label>
         <input type="text" id="workerUrl" placeholder="https://discord-audit.your-name.workers.dev" />
+      </div>
+      <div>
+        <label>طريقة الوصول للروابط</label>
+        <select id="authMode">
+          <option value="user">الحساب الشخصي (User Token - يقرأ قنواتك بدون بوت)</option>
+          <option value="bot">حساب بوت (Bot Token)</option>
+        </select>
+      </div>
+      <div>
+        <label>التوكن (User Token أو Bot Token حسب الاختيار)</label>
+        <input type="password" id="authToken" placeholder="الصق التوكن هنا (يُحفظ في متصفحك فقط)" />
       </div>
       <div>
         <label>Discord Client / Application ID</label>
         <input type="text" id="clientId" value="1573639825989308546" />
-      </div>
-      <div>
-        <label>Discord Bot Token (اختياري إذا كان مضبوطاً في Secrets بالـ Worker)</label>
-        <input type="password" id="botToken" placeholder="أدخل Bot Token هنا أو اتركه فارغاً" />
       </div>
     </div>
     <button onclick="saveSettings()">💾 حفظ الإعدادات</button>
@@ -118,10 +125,7 @@
 الوقت: 12:30 PM
 
 - التدريب:
-https://discord.com/channels/1346493522764894238/1438896254347247798/1572783865553100921
-
-- الحدث:
-https://discord.com/channels/1346493522764894238/1438898121726886019/1573256654349402243"></textarea>
+https://discord.com/channels/1346493522764894238/1438896254347247798/1572783865553100921"></textarea>
     <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
       <button onclick="auditBatchLinks()">🔍 بدء التدقيق الفعلي للروابط</button>
       <button class="secondary" onclick="document.getElementById('batchInput').value='';">مسح النص</button>
@@ -166,7 +170,7 @@ https://discord.com/channels/1346493522764894238/1438898121726886019/15732566543
         </tr>
       </thead>
       <tbody id="resultsBody">
-        <tr><td colspan="8" style="text-align:center; color:var(--muted)">أدخل رابط Cloudflare Worker في الإعدادات ثم الصق رسالة الروابط واضغط "بدء التدقيق الفعلي للروابط".</td></tr>
+        <tr><td colspan="8" style="text-align:center; color:var(--muted)">أدخل رابط Cloudflare Worker والتوكن في الإعدادات ثم الصق رسالة الروابط واضغط "بدء التدقيق الفعلي للروابط".</td></tr>
       </tbody>
     </table>
   </div>
@@ -174,17 +178,18 @@ https://discord.com/channels/1346493522764894238/1438898121726886019/15732566543
 
 <script>
   const DEFAULT_CLIENT_ID = "1573639825989308546";
-  const DEFAULT_WORKER_URL = ""; // يمكنك وضع رابط Worker هنا مباشرة إذا أردت
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
   window.onload = async () => {
-    document.getElementById('workerUrl').value = localStorage.getItem('dc_worker_url') || DEFAULT_WORKER_URL;
+    document.getElementById('workerUrl').value = localStorage.getItem('dc_worker_url') || '';
+    document.getElementById('authMode').value = localStorage.getItem('dc_auth_mode') || 'user';
+    document.getElementById('authToken').value = localStorage.getItem('dc_auth_token') || '';
     document.getElementById('clientId').value = localStorage.getItem('dc_client_id') || DEFAULT_CLIENT_ID;
-    document.getElementById('botToken').value = localStorage.getItem('dc_bot_token') || '';
 
     const hash = new URLSearchParams(window.location.hash.slice(1));
     const accessToken = hash.get('access_token');
     if (accessToken) {
-      localStorage.setItem('dc_user_token', accessToken);
+      localStorage.setItem('dc_user_oauth_token', accessToken);
       history.replaceState(null, null, window.location.pathname);
     }
     await checkUserSession();
@@ -198,8 +203,9 @@ https://discord.com/channels/1346493522764894238/1438898121726886019/15732566543
   function saveSettings() {
     const cleanWorker = document.getElementById('workerUrl').value.trim().replace(/\/+$/, '');
     localStorage.setItem('dc_worker_url', cleanWorker);
+    localStorage.setItem('dc_auth_mode', document.getElementById('authMode').value);
+    localStorage.setItem('dc_auth_token', document.getElementById('authToken').value.trim());
     localStorage.setItem('dc_client_id', document.getElementById('clientId').value.trim() || DEFAULT_CLIENT_ID);
-    localStorage.setItem('dc_bot_token', document.getElementById('botToken').value.trim());
     toggleSettings();
   }
 
@@ -210,14 +216,18 @@ https://discord.com/channels/1346493522764894238/1438898121726886019/15732566543
   }
 
   async function checkUserSession() {
-    const token = localStorage.getItem('dc_user_token');
-    if (!token) return;
+    const oauthToken = localStorage.getItem('dc_user_oauth_token');
+    const directUserToken = localStorage.getItem('dc_auth_mode') === 'user' ? localStorage.getItem('dc_auth_token') : null;
+
+    if (!oauthToken && !directUserToken) return;
     try {
       const res = await fetch('https://discord.com/api/users/@me', {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: {
+          Authorization: oauthToken ? `Bearer ${oauthToken}` : directUserToken
+        }
       });
       if (!res.ok) {
-        localStorage.removeItem('dc_user_token');
+        if (oauthToken) localStorage.removeItem('dc_user_oauth_token');
         return;
       }
       const user = await res.json();
@@ -229,7 +239,7 @@ https://discord.com/channels/1346493522764894238/1438898121726886019/15732566543
         <img src="${avatar}" alt="avatar">
         <div>
           <div style="font-weight:bold; font-size:14px;">${user.global_name || user.username}</div>
-          <small style="color:var(--ok)">● متصل عبر المتصفح</small>
+          <small style="color:var(--ok)">● متصل بالحساب الشخصي</small>
         </div>
         <button class="secondary" onclick="toggleSettings()">⚙️</button>
       `;
@@ -279,8 +289,9 @@ https://discord.com/channels/1346493522764894238/1438898121726886019/15732566543
   }
 
   async function auditBatchLinks() {
-    const workerUrl = (localStorage.getItem('dc_worker_url') || document.getElementById('workerUrl').value || DEFAULT_WORKER_URL || '').trim().replace(/\/+$/, '');
-    const botToken = (localStorage.getItem('dc_bot_token') || document.getElementById('botToken').value || '').trim();
+    const workerUrl = (localStorage.getItem('dc_worker_url') || document.getElementById('workerUrl').value || '').trim().replace(/\/+$/, '');
+    const authMode = localStorage.getItem('dc_auth_mode') || document.getElementById('authMode').value || 'user';
+    const authToken = (localStorage.getItem('dc_auth_token') || document.getElementById('authToken').value || '').trim();
     const rawInput = document.getElementById('batchInput').value || '';
 
     if (!workerUrl) {
@@ -308,7 +319,7 @@ https://discord.com/channels/1346493522764894238/1438898121726886019/15732566543
       return;
     }
 
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">جاري الدخول إلى ${links.length} رابط عبر Cloudflare Worker وتدقيق محتوى كل رسالة...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">جاري الدخول إلى ${links.length} رابط بصلاحيات ${authMode === 'user' ? 'الحساب الشخصي' : 'البوت'}...</td></tr>`;
 
     let fetchedCount = 0;
     let okCount = 0;
@@ -316,17 +327,25 @@ https://discord.com/channels/1346493522764894238/1438898121726886019/15732566543
     let otherCount = 0;
     const rowsHtml = [];
 
-    const headers = {};
-    if (botToken) headers['X-Bot-Token'] = botToken;
+    const headers = { 'X-Auth-Mode': authMode };
+    if (authToken) headers['X-Auth-Token'] = authToken;
 
     for (let i = 0; i < links.length; i++) {
+      if (i > 0) await sleep(350);
       const item = links[i];
+
       try {
         const endpoint = `${workerUrl}?channel=${encodeURIComponent(item.channelId)}&message=${encodeURIComponent(item.messageId)}`;
         const res = await fetch(endpoint, { headers });
 
         if (!res.ok) {
           otherCount++;
+          let errDetail = '';
+          try {
+            const errJson = await res.json();
+            errDetail = errJson.message || errJson.error || '';
+          } catch (_) {}
+
           rowsHtml.push(`
             <tr>
               <td>${i + 1}</td>
@@ -335,7 +354,7 @@ https://discord.com/channels/1346493522764894238/1438898121726886019/15732566543
               <td>${parentFields.date || '<span class="missing">غير متاح</span>'}</td>
               <td>${parentFields.time || '<span class="missing">غير متاح</span>'}</td>
               <td><span class="badge badge-pending">تعذر الوصول (${res.status})</span></td>
-              <td class="raw-msg" style="color:#fca5a5">تأكد من وجود البوت في السيرفر وصلاحية قراءة هذه القناة وصحة التوكن.</td>
+              <td class="raw-msg" style="color:#fca5a5">${errDetail || 'تأكد من صحة التوكن وصلاحية دخول حسابك لهذه القناة.'}</td>
               <td>—</td>
             </tr>
           `);
@@ -380,10 +399,10 @@ https://discord.com/channels/1346493522764894238/1438898121726886019/15732566543
               ${markBadge}
               ${renderReactionChips(msg.reactions)}
             </td>
-            <td class="raw-msg">${fullMsgText ? fullMsgText.substring(0, 200) + (fullMsgText.length > 200 ? '...' : '') : '<span class="missing">رسالة بدون نص (مرفقات/صور فقط)</span>'}</td>
+            <td class="raw-msg">${fullMsgText ? fullMsgText.substring(0, 220) + (fullMsgText.length > 220 ? '...' : '') : '<span class="missing">رسالة بدون نص (مرفقات/صور فقط)</span>'}</td>
             <td>
-              <button class="btn-ok" title="وضع إشارة صح على الرسالة" onclick="reactOnLink('${item.channelId}', '${item.messageId}', '%E2%9C%85')">✅</button>
-              <button class="btn-no" title="وضع إشارة خطأ على الرسالة" onclick="reactOnLink('${item.channelId}', '${item.messageId}', '%E2%9D%8C')">❌</button>
+              <button class="btn-ok" title="وضع إشارة صح بحسابك" onclick="reactOnLink('${item.channelId}', '${item.messageId}', '%E2%9C%85')">✅</button>
+              <button class="btn-no" title="وضع إشارة خطأ بحسابك" onclick="reactOnLink('${item.channelId}', '${item.messageId}', '%E2%9D%8C')">❌</button>
             </td>
           </tr>
         `);
@@ -411,12 +430,13 @@ https://discord.com/channels/1346493522764894238/1438898121726886019/15732566543
   }
 
   async function reactOnLink(channelId, messageId, encodedEmoji) {
-    const workerUrl = (localStorage.getItem('dc_worker_url') || document.getElementById('workerUrl').value || DEFAULT_WORKER_URL || '').trim().replace(/\/+$/, '');
-    const botToken = (localStorage.getItem('dc_bot_token') || document.getElementById('botToken').value || '').trim();
+    const workerUrl = (localStorage.getItem('dc_worker_url') || document.getElementById('workerUrl').value || '').trim().replace(/\/+$/, '');
+    const authMode = localStorage.getItem('dc_auth_mode') || document.getElementById('authMode').value || 'user';
+    const authToken = (localStorage.getItem('dc_auth_token') || document.getElementById('authToken').value || '').trim();
     if (!workerUrl) return;
 
-    const headers = {};
-    if (botToken) headers['X-Bot-Token'] = botToken;
+    const headers = { 'X-Auth-Mode': authMode };
+    if (authToken) headers['X-Auth-Token'] = authToken;
 
     try {
       const endpoint = `${workerUrl}?channel=${encodeURIComponent(channelId)}&message=${encodeURIComponent(messageId)}&emoji=${encodedEmoji}`;
@@ -424,7 +444,7 @@ https://discord.com/channels/1346493522764894238/1438898121726886019/15732566543
       if (!res.ok) throw new Error('فشل التفاعل');
       auditBatchLinks();
     } catch (e) {
-      alert('تعذر إضافة الإشارة، تأكد من صلاحية Add Reactions للبوت في القناة.');
+      alert('تعذر إضافة الإشارة، تأكد من صلاحية Add Reactions لحسابك في تلك القناة.');
     }
   }
 </script>
